@@ -60,6 +60,106 @@ function requirePhaser_min () {
 var phaser_minExports = requirePhaser_min();
 var phaser_min = /*@__PURE__*/getDefaultExportFromCjs(phaser_minExports);
 
+const languageData = {
+    en: {
+        title: "CAN YOU DRAW IT?",
+        subtitle: "no lifting finger and overlapping lines",
+        install_button: "INSTALL",
+        page_title: "Can you draw it?"
+    },
+    tr: {
+        title: "ÇİZEBİLİR MİSİN?",
+        subtitle: "parmağını kaldırma ve çizgilerin üstünden geçme",
+        install_button: "İNDİR",
+        page_title: "Çizebilir misin?"
+    },
+    ar: {
+        title: "هل يمكنك رسمه؟",
+        subtitle: "لا رفع إصبع وخطوط متداخلة",
+        install_button: "ثَبَّتَ",
+        page_title: "هل يمكنك رسمه؟"
+    }
+};
+
+class LocalizationManager {
+    constructor() {
+        Object.defineProperty(this, "currentLanguage", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: 'en'
+        });
+        this.detectLanguage();
+    }
+    static getInstance() {
+        if (!LocalizationManager.instance) {
+            LocalizationManager.instance = new LocalizationManager();
+        }
+        return LocalizationManager.instance;
+    }
+    detectLanguage() {
+        const browserLang = navigator.language.toLowerCase();
+        if (browserLang.startsWith('tr')) {
+            this.currentLanguage = 'tr';
+        }
+        else if (browserLang.startsWith('ar')) {
+            this.currentLanguage = 'ar';
+        }
+        else {
+            this.currentLanguage = 'en'; // Default English
+        }
+    }
+    getCurrentLanguage() {
+        return this.currentLanguage;
+    }
+    getText(key) {
+        const languageTexts = languageData[this.currentLanguage];
+        return languageTexts[key] || languageData.en[key];
+    }
+    updatePageTitle() {
+        document.title = this.getText('page_title');
+        if (this.isRTL()) {
+            document.documentElement.setAttribute('dir', 'rtl');
+            document.documentElement.setAttribute('lang', this.currentLanguage);
+        }
+        else {
+            document.documentElement.setAttribute('dir', 'ltr');
+            document.documentElement.setAttribute('lang', this.currentLanguage);
+        }
+    }
+    isRTL() {
+        return this.currentLanguage === 'ar';
+    }
+    getResponsiveFontSize(baseSize, textKey, screenWidth) {
+        const text = this.getText(textKey);
+        const textLength = text.length;
+        let scaleFactor = 1;
+        if (textKey === 'title') {
+            if (textLength > 20) {
+                scaleFactor = Math.max(0.7, Math.min(1, (screenWidth - 40) / (textLength * 12)));
+            }
+            else if (textLength > 15) {
+                scaleFactor = Math.max(0.8, Math.min(1, (screenWidth - 40) / (textLength * 14)));
+            }
+        }
+        if (textKey === 'subtitle') {
+            const estimatedWidth = textLength * (baseSize * 0.6);
+            if (estimatedWidth > screenWidth - 40) {
+                scaleFactor = Math.max(0.6, (screenWidth - 40) / estimatedWidth);
+            }
+        }
+        return Math.round(baseSize * scaleFactor);
+    }
+    shouldWrapText(textKey, fontSize, screenWidth) {
+        const text = this.getText(textKey);
+        const estimatedWidth = text.length * (fontSize * 0.6);
+        return estimatedWidth > screenWidth - 40;
+    }
+    getWordWrapWidth(screenWidth) {
+        return Math.max(200, screenWidth - 40);
+    }
+}
+
 const GAME_CONFIG = {
     BRUSH_SIZE_BASE: 42,
     MIN_BRUSH_SIZE: 8,
@@ -139,10 +239,12 @@ const ATLAS_FRAMES = {
     FAIL_IMAGE: 'fail.jpg',
     SUCCESS_IMAGE: 'wellDone.jpg'
 };
+// Get localization instance
+const localization = LocalizationManager.getInstance();
 const MESSAGES = {
-    TITLE: 'CAN YOU DRAW IT?',
-    SUBTITLE: 'no lifting finger and overlapping lines',
-    INSTALL_BUTTON: 'INSTALL',
+    TITLE: localization.getText('title'),
+    SUBTITLE: localization.getText('subtitle'),
+    INSTALL_BUTTON: localization.getText('install_button'),
     GAME_COMPLETED: 'Game completed! 99% of shape painted.',
     DRAWING_INITIALIZED: 'Drawing system initialized with skeleton path-constrained drawing',
     MOUSE_UP_RESET: 'Mouse up detected - resetting game (one line drawing rule)',
@@ -1511,6 +1613,12 @@ class UIManager {
             writable: true,
             value: void 0
         });
+        Object.defineProperty(this, "localization", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: void 0
+        });
         Object.defineProperty(this, "titleText", {
             enumerable: true,
             configurable: true,
@@ -1537,19 +1645,36 @@ class UIManager {
         });
         this.scene = scene;
         this.shapeTransform = shapeTransform;
+        this.localization = LocalizationManager.getInstance();
     }
     createTitleTexts() {
         const centerX = this.scene.cameras.main.width / 2;
+        const screenWidth = this.scene.cameras.main.width;
+        // Calculate responsive font sizes
+        const titleFontSize = this.localization.getResponsiveFontSize(GAME_CONFIG.TITLE_FONT_SIZE, 'title', screenWidth);
+        const subtitleFontSize = this.localization.getResponsiveFontSize(GAME_CONFIG.SUBTITLE_FONT_SIZE, 'subtitle', screenWidth);
+        // Create title text with responsive settings
         this.titleText = this.scene.add.text(centerX, GAME_CONFIG.TITLE_TOP_MARGIN, MESSAGES.TITLE, {
-            fontSize: `${GAME_CONFIG.TITLE_FONT_SIZE}px`,
+            fontSize: `${titleFontSize}px`,
             color: COLORS.TEXT_WHITE,
             fontFamily: 'Arial',
-            fontStyle: 'bold'
+            fontStyle: 'bold',
+            wordWrap: this.localization.shouldWrapText('title', titleFontSize, screenWidth) ? {
+                width: this.localization.getWordWrapWidth(screenWidth),
+                useAdvancedWrap: true
+            } : undefined,
+            align: 'center'
         }).setOrigin(0.5, 0);
+        // Create subtitle text with responsive settings
         this.subtitleText = this.scene.add.text(centerX, GAME_CONFIG.TITLE_TOP_MARGIN + GAME_CONFIG.SUBTITLE_OFFSET, MESSAGES.SUBTITLE, {
-            fontSize: `${GAME_CONFIG.SUBTITLE_FONT_SIZE}px`,
+            fontSize: `${subtitleFontSize}px`,
             color: COLORS.TEXT_RED,
-            fontFamily: 'Arial'
+            fontFamily: 'Arial',
+            wordWrap: this.localization.shouldWrapText('subtitle', subtitleFontSize, screenWidth) ? {
+                width: this.localization.getWordWrapWidth(screenWidth),
+                useAdvancedWrap: true
+            } : undefined,
+            align: 'center'
         }).setOrigin(0.5, 0);
     }
     createInstallButton() {
@@ -1599,6 +1724,32 @@ class UIManager {
         this.installButton.setPosition(btnX, btnY);
         this.installButtonText.setPosition(btnX, btnY);
         this.installButtonText.setFontSize(Math.round(GAME_CONFIG.INSTALL_BUTTON_FONT_SIZE * scale));
+    }
+    updateTextSizes() {
+        if (!this.titleText || !this.subtitleText)
+            return;
+        const screenWidth = this.scene.cameras.main.width;
+        const centerX = screenWidth / 2;
+        // Update title text
+        const titleFontSize = this.localization.getResponsiveFontSize(GAME_CONFIG.TITLE_FONT_SIZE, 'title', screenWidth);
+        this.titleText.setFontSize(titleFontSize);
+        this.titleText.setPosition(centerX, GAME_CONFIG.TITLE_TOP_MARGIN);
+        if (this.localization.shouldWrapText('title', titleFontSize, screenWidth)) {
+            this.titleText.setWordWrapWidth(this.localization.getWordWrapWidth(screenWidth));
+        }
+        else {
+            this.titleText.setWordWrapWidth(screenWidth - 20);
+        }
+        // Update subtitle text
+        const subtitleFontSize = this.localization.getResponsiveFontSize(GAME_CONFIG.SUBTITLE_FONT_SIZE, 'subtitle', screenWidth);
+        this.subtitleText.setFontSize(subtitleFontSize);
+        this.subtitleText.setPosition(centerX, GAME_CONFIG.TITLE_TOP_MARGIN + GAME_CONFIG.SUBTITLE_OFFSET);
+        if (this.localization.shouldWrapText('subtitle', subtitleFontSize, screenWidth)) {
+            this.subtitleText.setWordWrapWidth(this.localization.getWordWrapWidth(screenWidth));
+        }
+        else {
+            this.subtitleText.setWordWrapWidth(screenWidth - 20);
+        }
     }
     destroy() {
         if (this.titleText) {
@@ -1767,6 +1918,7 @@ class Game extends phaser_minExports.Scene {
         this.scale.on('resize', () => {
             this.progressManager.updateProgressBarPosition();
             this.uiManager.updateInstallButtonPosition();
+            this.uiManager.updateTextSizes();
         });
     }
     preload() {
@@ -1972,6 +2124,9 @@ const StartGame = (parent) => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize localization and update page title
+    const localization = LocalizationManager.getInstance();
+    localization.updatePageTitle();
     StartGame('game-container');
 });
 

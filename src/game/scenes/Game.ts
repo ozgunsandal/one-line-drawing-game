@@ -32,6 +32,7 @@ export class Game extends Scene {
         this.scale.on('resize', () => {
             this.progressManager.updateProgressBarPosition();
             this.uiManager.updateInstallButtonPosition();
+            this.uiManager.updateTextSizes();
         });
     }
 

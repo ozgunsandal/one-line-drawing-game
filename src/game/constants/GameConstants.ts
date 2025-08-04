@@ -1,3 +1,5 @@
+import { LocalizationManager } from '../localization/LocalizationManager';
+
 export const GAME_CONFIG = {
     BRUSH_SIZE_BASE: 42,
     MIN_BRUSH_SIZE: 8,
@@ -100,10 +102,13 @@ export const ATLAS_FRAMES = {
     SUCCESS_IMAGE: 'wellDone.jpg'
 };
 
+// Get localization instance
+const localization = LocalizationManager.getInstance();
+
 export const MESSAGES = {
-    TITLE: 'CAN YOU DRAW IT?',
-    SUBTITLE: 'no lifting finger and overlapping lines',
-    INSTALL_BUTTON: 'INSTALL',
+    TITLE: localization.getText('title'),
+    SUBTITLE: localization.getText('subtitle'),
+    INSTALL_BUTTON: localization.getText('install_button'),
     GAME_COMPLETED: 'Game completed! 99% of shape painted.',
     DRAWING_INITIALIZED: 'Drawing system initialized with skeleton path-constrained drawing',
     MOUSE_UP_RESET: 'Mouse up detected - resetting game (one line drawing rule)',
