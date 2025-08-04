@@ -161,7 +161,7 @@ export class Game extends Scene {
         if (this.gameCompleted) return;
         
         if (!this.drawingSystem.onMouseMove(x, y)) {
-            this.resetDrawing(true);
+            this.resetDrawing(false);
             return;
         }
         
