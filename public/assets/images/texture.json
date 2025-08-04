@@ -1,0 +1,145 @@
+{
+	"textures": [
+		{
+			"image": "texture",
+			"format": "RGBA8888",
+			"size": {
+				"w": 2011,
+				"h": 1280
+			},
+			"scale": 1,
+			"frames": [
+				{
+					"filename": "drawing-bg1.jpg",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 1280,
+						"h": 1280
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 1280,
+						"h": 1280
+					},
+					"frame": {
+						"x": 0,
+						"y": 0,
+						"w": 1280,
+						"h": 1280
+					}
+				},
+				{
+					"filename": "drawing-bg2.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 664,
+						"h": 616
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 664,
+						"h": 616
+					},
+					"frame": {
+						"x": 1280,
+						"y": 0,
+						"w": 664,
+						"h": 616
+					}
+				},
+				{
+					"filename": "installBtn.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 500,
+						"h": 128
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 500,
+						"h": 128
+					},
+					"frame": {
+						"x": 1280,
+						"y": 616,
+						"w": 500,
+						"h": 128
+					}
+				},
+				{
+					"filename": "hand.png",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 231,
+						"h": 272
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 231,
+						"h": 272
+					},
+					"frame": {
+						"x": 1780,
+						"y": 616,
+						"w": 231,
+						"h": 272
+					}
+				},
+				{
+					"filename": "wellDone.jpg",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 300,
+						"h": 111
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 300,
+						"h": 111
+					},
+					"frame": {
+						"x": 1280,
+						"y": 744,
+						"w": 300,
+						"h": 111
+					}
+				},
+				{
+					"filename": "fail.jpg",
+					"rotated": false,
+					"trimmed": false,
+					"sourceSize": {
+						"w": 282,
+						"h": 117
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 282,
+						"h": 117
+					},
+					"frame": {
+						"x": 1280,
+						"y": 855,
+						"w": 282,
+						"h": 117
+					}
+				}
+			]
+		}
+	],
+	"meta": {
+		"app": "http://free-tex-packer.com",
+		"version": "0.6.7"
+	}
+}
