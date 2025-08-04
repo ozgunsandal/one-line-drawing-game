@@ -93,7 +93,7 @@ export class ShapeTransform {
         const scale = Math.min(GAME_CONFIG.INSTALL_BUTTON_MAX_WIDTH / btnWidth, 1);
         const scaledHeight = btnHeight * scale;
         const btnX = screenWidth / 2;
-        const btnY = screenHeight - GAME_CONFIG.INSTALL_BUTTON_MARGIN - (scaledHeight / 2);
+        const btnY = screenHeight - scaledHeight;
         
         return { btnX, btnY, scale };
     }
