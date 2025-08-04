@@ -84,16 +84,25 @@ export class ShapeTransform {
 
     getInstallButtonTransform(): { btnX: number; btnY: number; scale: number } {
         const screenWidth = this.scene.cameras.main.width;
-        const screenHeight = this.scene.cameras.main.height;
+        const centerY = this.scene.cameras.main.height / 2;
         
         const btnFrame = this.scene.textures.get('texture').get('installBtn.png');
         const btnWidth = btnFrame.width;
         const btnHeight = btnFrame.height;
         
+        // Get b2 image dimensions and position
+        const bg2Frame = this.scene.textures.get('texture').get('drawing-bg2.png');
+        const bg2TargetWidth = screenWidth - (GAME_CONFIG.SCREEN_MARGIN * 2);
+        const bg2Scale = bg2TargetWidth / bg2Frame.width;
+        const bg2Height = bg2Frame.height * bg2Scale;
+        
+        // Calculate b2 image bottom position
+        const bg2BottomY = centerY + (bg2Height / 2);
+        
         const scale = Math.min(GAME_CONFIG.INSTALL_BUTTON_MAX_WIDTH / btnWidth, 1);
         const scaledHeight = btnHeight * scale;
         const btnX = screenWidth / 2;
-        const btnY = screenHeight - scaledHeight;
+        const btnY = bg2BottomY + GAME_CONFIG.INSTALL_BUTTON_MARGIN + (scaledHeight / 2);
         
         return { btnX, btnY, scale };
     }
