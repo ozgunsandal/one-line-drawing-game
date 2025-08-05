@@ -161,7 +161,7 @@ export class Game extends Scene {
         if (this.gameCompleted) return;
         
         if (!this.drawingSystem.onMouseMove(x, y)) {
-            this.resetDrawing(false);
+            this.resetDrawing(true);
             return;
         }
         
@@ -171,9 +171,9 @@ export class Game extends Scene {
     private onMouseUp(): void {
         if (!this.drawingSystem.getIsDrawing()) return;
         
-        console.log(MESSAGES.MOUSE_UP_RESET);
+        console.log('Mouse up - resetting drawing without fail screen');
         this.drawingSystem.onMouseUp();
-        this.resetDrawing();
+        this.resetDrawing(false);
     }
 
     private updateProgress(): void {

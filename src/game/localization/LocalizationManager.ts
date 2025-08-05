@@ -23,7 +23,7 @@ export class LocalizationManager {
         
         
         if (browserLang.startsWith('tr')) {
-            this.currentLanguage = 'tr';
+            this.currentLanguage = 'en';
         } else if (browserLang.startsWith('ar')) {
             this.currentLanguage = 'ar';
         } else {

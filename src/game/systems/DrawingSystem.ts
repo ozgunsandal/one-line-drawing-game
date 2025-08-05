@@ -268,31 +268,28 @@ export class DrawingSystem {
 
         const snapPoint = this.findNearestPointOnSkeleton(x, y);
         
-        if (!snapPoint.onPath) {
-            console.log('Mouse left valid drawing path - resetting game');
-            return false;
-        }
+        const drawPoint = snapPoint.onPath ? snapPoint : {x, y, onPath: false};
         
-        const distance = this.getDistance(this.lastMouseX, this.lastMouseY, snapPoint.x, snapPoint.y);
+        const distance = this.getDistance(this.lastMouseX, this.lastMouseY, drawPoint.x, drawPoint.y);
         
-        if (this.checkNewSegmentIntersection(this.lastMouseX, this.lastMouseY, snapPoint.x, snapPoint.y)) {
+        if (this.checkNewSegmentIntersection(this.lastMouseX, this.lastMouseY, drawPoint.x, drawPoint.y)) {
             console.log('Line intersection detected! Resetting...');
             return false;
         }
         
         if (distance < GAME_CONFIG.MIN_MOVEMENT_DISTANCE) return true;
         
-        this.drawOptimizedLine(this.lastMouseX, this.lastMouseY, snapPoint.x, snapPoint.y);
-        this.markCoveredSegments(this.lastMouseX, this.lastMouseY, snapPoint.x, snapPoint.y);
-        this.currentPath.push({x: snapPoint.x, y: snapPoint.y});
+        this.drawOptimizedLine(this.lastMouseX, this.lastMouseY, drawPoint.x, drawPoint.y);
+        this.markCoveredSegments(this.lastMouseX, this.lastMouseY, drawPoint.x, drawPoint.y);
+        this.currentPath.push({x: drawPoint.x, y: drawPoint.y});
         
-        this.lastMouseX = snapPoint.x;
-        this.lastMouseY = snapPoint.y;
+        this.lastMouseX = drawPoint.x;
+        this.lastMouseY = drawPoint.y;
         return true;
     }
 
     onMouseUp(): void {
-        console.log('Mouse up detected - resetting game (one line drawing rule)');
+        console.log('Mouse up detected - stopping drawing');
         this.hidePathPreview();
     }
 

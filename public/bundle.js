@@ -100,7 +100,7 @@ class LocalizationManager {
     detectLanguage() {
         const browserLang = navigator.language.toLowerCase();
         if (browserLang.startsWith('tr')) {
-            this.currentLanguage = 'tr';
+            this.currentLanguage = 'en';
         }
         else if (browserLang.startsWith('ar')) {
             this.currentLanguage = 'ar';
@@ -1043,26 +1043,24 @@ class DrawingSystem {
         if (!this.isDrawing)
             return true;
         const snapPoint = this.findNearestPointOnSkeleton(x, y);
-        if (!snapPoint.onPath) {
-            console.log('Mouse left valid drawing path - resetting game');
-            return false;
-        }
-        const distance = this.getDistance(this.lastMouseX, this.lastMouseY, snapPoint.x, snapPoint.y);
-        if (this.checkNewSegmentIntersection(this.lastMouseX, this.lastMouseY, snapPoint.x, snapPoint.y)) {
+        // Allow drawing even if mouse is not exactly on path
+        const drawPoint = snapPoint.onPath ? snapPoint : { x, y, onPath: false };
+        const distance = this.getDistance(this.lastMouseX, this.lastMouseY, drawPoint.x, drawPoint.y);
+        if (this.checkNewSegmentIntersection(this.lastMouseX, this.lastMouseY, drawPoint.x, drawPoint.y)) {
             console.log('Line intersection detected! Resetting...');
             return false;
         }
         if (distance < GAME_CONFIG.MIN_MOVEMENT_DISTANCE)
             return true;
-        this.drawOptimizedLine(this.lastMouseX, this.lastMouseY, snapPoint.x, snapPoint.y);
-        this.markCoveredSegments(this.lastMouseX, this.lastMouseY, snapPoint.x, snapPoint.y);
-        this.currentPath.push({ x: snapPoint.x, y: snapPoint.y });
-        this.lastMouseX = snapPoint.x;
-        this.lastMouseY = snapPoint.y;
+        this.drawOptimizedLine(this.lastMouseX, this.lastMouseY, drawPoint.x, drawPoint.y);
+        this.markCoveredSegments(this.lastMouseX, this.lastMouseY, drawPoint.x, drawPoint.y);
+        this.currentPath.push({ x: drawPoint.x, y: drawPoint.y });
+        this.lastMouseX = drawPoint.x;
+        this.lastMouseY = drawPoint.y;
         return true;
     }
     onMouseUp() {
-        console.log('Mouse up detected - resetting game (one line drawing rule)');
+        console.log('Mouse up detected - stopping drawing');
         this.hidePathPreview();
     }
     drawOptimizedLine(startX, startY, endX, endY) {
@@ -2026,7 +2024,7 @@ class Game extends phaser_minExports.Scene {
         if (this.gameCompleted)
             return;
         if (!this.drawingSystem.onMouseMove(x, y)) {
-            this.resetDrawing(false);
+            this.resetDrawing(true);
             return;
         }
         this.updateProgress();
@@ -2034,9 +2032,9 @@ class Game extends phaser_minExports.Scene {
     onMouseUp() {
         if (!this.drawingSystem.getIsDrawing())
             return;
-        console.log(MESSAGES.MOUSE_UP_RESET);
+        console.log('Mouse up - resetting drawing without fail screen');
         this.drawingSystem.onMouseUp();
-        this.resetDrawing();
+        this.resetDrawing(false);
     }
     updateProgress() {
         if (this.gameCompleted)
