@@ -100,7 +100,7 @@ class LocalizationManager {
     detectLanguage() {
         const browserLang = navigator.language.toLowerCase();
         if (browserLang.startsWith('tr')) {
-            this.currentLanguage = 'en';
+            this.currentLanguage = 'tr';
         }
         else if (browserLang.startsWith('ar')) {
             this.currentLanguage = 'ar';
@@ -1043,7 +1043,6 @@ class DrawingSystem {
         if (!this.isDrawing)
             return true;
         const snapPoint = this.findNearestPointOnSkeleton(x, y);
-        // Allow drawing even if mouse is not exactly on path
         const drawPoint = snapPoint.onPath ? snapPoint : { x, y, onPath: false };
         const distance = this.getDistance(this.lastMouseX, this.lastMouseY, drawPoint.x, drawPoint.y);
         if (this.checkNewSegmentIntersection(this.lastMouseX, this.lastMouseY, drawPoint.x, drawPoint.y)) {
