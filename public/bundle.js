@@ -100,7 +100,7 @@ class LocalizationManager {
     detectLanguage() {
         const browserLang = navigator.language.toLowerCase();
         if (browserLang.startsWith('tr')) {
-            this.currentLanguage = 'tr';
+            this.currentLanguage = 'en';
         }
         else if (browserLang.startsWith('ar')) {
             this.currentLanguage = 'ar';
@@ -173,6 +173,7 @@ const GAME_CONFIG = {
     MOUSE_DELTA_THRESHOLD: 2,
     SNAP_DISTANCE: 30,
     COVERAGE_RADIUS: 8,
+    NEAR_DRAWABLE_DISTANCE: 48,
     INTERSECTION_EPSILON: 1e-9,
     SKIP_RECENT_SEGMENTS: 3,
     GRID_SIZE: 50,
@@ -1160,12 +1161,28 @@ class DrawingSystem {
         const dy = py - yy;
         return Math.sqrt(dx * dx + dy * dy);
     }
+    hasNearbyDrawablePath(segStartX, segStartY, segEndX, segEndY) {
+        const threshold = GAME_CONFIG.NEAR_DRAWABLE_DISTANCE;
+        for (const segment of this.skeletonSegments) {
+            if (segment.covered)
+                continue;
+            const d = this.lineToLineDistance(segStartX, segStartY, segEndX, segEndY, segment.start.x, segment.start.y, segment.end.x, segment.end.y);
+            if (d <= threshold) {
+                return true;
+            }
+        }
+        return false;
+    }
     checkNewSegmentIntersection(newStartX, newStartY, newEndX, newEndY) {
         for (const path of this.drawnPaths) {
             for (let i = 0; i < path.length - 1; i++) {
                 const segmentStart = path[i];
                 const segmentEnd = path[i + 1];
                 if (this.checkLineIntersection(newStartX, newStartY, newEndX, newEndY, segmentStart.x, segmentStart.y, segmentEnd.x, segmentEnd.y)) {
+                    // Tolerate if there is a nearby drawable path to progress towards
+                    if (this.hasNearbyDrawablePath(newStartX, newStartY, newEndX, newEndY)) {
+                        continue;
+                    }
                     return true;
                 }
             }
@@ -1175,6 +1192,9 @@ class DrawingSystem {
                 const segmentStart = this.currentPath[i];
                 const segmentEnd = this.currentPath[i + 1];
                 if (this.checkLineIntersection(newStartX, newStartY, newEndX, newEndY, segmentStart.x, segmentStart.y, segmentEnd.x, segmentEnd.y)) {
+                    if (this.hasNearbyDrawablePath(newStartX, newStartY, newEndX, newEndY)) {
+                        continue;
+                    }
                     return true;
                 }
             }

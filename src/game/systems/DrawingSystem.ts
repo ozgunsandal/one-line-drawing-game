@@ -422,6 +422,21 @@ export class DrawingSystem {
         return Math.sqrt(dx * dx + dy * dy);
     }
 
+    private hasNearbyDrawablePath(segStartX: number, segStartY: number, segEndX: number, segEndY: number): boolean {
+        const threshold = GAME_CONFIG.NEAR_DRAWABLE_DISTANCE;
+        for (const segment of this.skeletonSegments) {
+            if (segment.covered) continue;
+            const d = this.lineToLineDistance(
+                segStartX, segStartY, segEndX, segEndY,
+                segment.start.x, segment.start.y, segment.end.x, segment.end.y
+            );
+            if (d <= threshold) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private checkNewSegmentIntersection(newStartX: number, newStartY: number, newEndX: number, newEndY: number): boolean {
         for (const path of this.drawnPaths) {
             for (let i = 0; i < path.length - 1; i++) {
@@ -432,6 +447,10 @@ export class DrawingSystem {
                     newStartX, newStartY, newEndX, newEndY,
                     segmentStart.x, segmentStart.y, segmentEnd.x, segmentEnd.y
                 )) {
+                    // Tolerate if there is a nearby drawable path to progress towards
+                    if (this.hasNearbyDrawablePath(newStartX, newStartY, newEndX, newEndY)) {
+                        continue;
+                    }
                     return true;
                 }
             }
@@ -446,6 +465,9 @@ export class DrawingSystem {
                     newStartX, newStartY, newEndX, newEndY,
                     segmentStart.x, segmentStart.y, segmentEnd.x, segmentEnd.y
                 )) {
+                    if (this.hasNearbyDrawablePath(newStartX, newStartY, newEndX, newEndY)) {
+                        continue;
+                    }
                     return true;
                 }
             }
