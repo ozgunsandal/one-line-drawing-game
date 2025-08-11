@@ -173,7 +173,7 @@ const GAME_CONFIG = {
     MOUSE_DELTA_THRESHOLD: 2,
     SNAP_DISTANCE: 30,
     COVERAGE_RADIUS: 8,
-    NEAR_DRAWABLE_DISTANCE: 26,
+    NEAR_DRAWABLE_DISTANCE: 32,
     INTERSECTION_EPSILON: 1e-9,
     SKIP_RECENT_SEGMENTS: 3,
     GRID_SIZE: 50,
@@ -219,7 +219,7 @@ const COLORS = {
     SKELETON_COLOR: 0x000000,
     CONFETTI_COLORS: [0xff6b6b, 0x4ecdc4, 0x45b7d1, 0xf9ca24, 0xf0932b, 0xeb4d4b, 0x6c5ce7, 0xa29bfe]
 };
-const DRAWING_OBJECTS = ['potion-bottle', 'table-lamp', 'ship', 'topuklu'];
+const DRAWING_OBJECTS = ['ship', 'table-lamp', 'ship', 'topuklu'];
 const TEXTURE_ATLAS = {
     KEY: 'texture',
     PATH: 'assets/images/texture.png',
