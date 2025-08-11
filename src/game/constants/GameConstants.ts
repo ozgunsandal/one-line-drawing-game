@@ -79,7 +79,7 @@ export const COLORS = {
     CONFETTI_COLORS: [0xff6b6b, 0x4ecdc4, 0x45b7d1, 0xf9ca24, 0xf0932b, 0xeb4d4b, 0x6c5ce7, 0xa29bfe]
 };
 
-export const DRAWING_OBJECTS = ['ship', 'table-lamp', 'ship', 'topuklu'];
+export const DRAWING_OBJECTS = ['potion-bottle', 'table-lamp', 'ship', 'topuklu'];
 
 export const TEXTURE_ATLAS = {
     KEY: 'texture',
