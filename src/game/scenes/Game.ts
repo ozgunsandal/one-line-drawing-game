@@ -130,6 +130,7 @@ export class Game extends Scene {
 
         this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
             this.noteUserInteraction();
+            if (this.tutorialActive) return;
             if (this.drawingSystem.getIsDrawing()) {
                 this.onMouseMove(pointer.x, pointer.y);
             }

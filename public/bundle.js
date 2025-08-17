@@ -1686,10 +1686,8 @@ class UIManager {
     createTitleTexts() {
         const centerX = this.scene.cameras.main.width / 2;
         const screenWidth = this.scene.cameras.main.width;
-        // Calculate responsive font sizes
         const titleFontSize = this.localization.getResponsiveFontSize(GAME_CONFIG.TITLE_FONT_SIZE, 'title', screenWidth);
         const subtitleFontSize = this.localization.getResponsiveFontSize(GAME_CONFIG.SUBTITLE_FONT_SIZE, 'subtitle', screenWidth);
-        // Create title text with responsive settings
         this.titleText = this.scene.add.text(centerX, GAME_CONFIG.TITLE_TOP_MARGIN, MESSAGES.TITLE, {
             fontSize: `${titleFontSize}px`,
             color: COLORS.TEXT_WHITE,
@@ -1701,7 +1699,6 @@ class UIManager {
             } : undefined,
             align: 'center'
         }).setOrigin(0.5, 0);
-        // Create subtitle text with responsive settings
         this.subtitleText = this.scene.add.text(centerX, GAME_CONFIG.TITLE_TOP_MARGIN + GAME_CONFIG.SUBTITLE_OFFSET, MESSAGES.SUBTITLE, {
             fontSize: `${subtitleFontSize}px`,
             color: COLORS.TEXT_RED,
@@ -1734,15 +1731,16 @@ class UIManager {
             this.installButton?.setTint(0xcccccc);
             this.installButtonText?.setTint(0xcccccc);
             try {
-                window.ExitApi.exit();
+                const url = window.MRAID_URL || window.clickTag || window.CLICKTAG || undefined;
+                if (window.ExitApi && typeof window.ExitApi.exit === 'function') {
+                    (url !== undefined) ? window.ExitApi.exit(url) : window.ExitApi.exit();
+                }
             }
-            catch (error) {
-            }
+            catch (error) { }
             try {
                 window.callFacebookCTA();
             }
-            catch (error) {
-            }
+            catch (error) { }
         });
         this.installButton.on('pointerup', () => {
             this.installButton?.clearTint();
@@ -1766,7 +1764,6 @@ class UIManager {
             return;
         const screenWidth = this.scene.cameras.main.width;
         const centerX = screenWidth / 2;
-        // Update title text
         const titleFontSize = this.localization.getResponsiveFontSize(GAME_CONFIG.TITLE_FONT_SIZE, 'title', screenWidth);
         this.titleText.setFontSize(titleFontSize);
         this.titleText.setPosition(centerX, GAME_CONFIG.TITLE_TOP_MARGIN);
@@ -1776,7 +1773,6 @@ class UIManager {
         else {
             this.titleText.setWordWrapWidth(screenWidth - 20);
         }
-        // Update subtitle text
         const subtitleFontSize = this.localization.getResponsiveFontSize(GAME_CONFIG.SUBTITLE_FONT_SIZE, 'subtitle', screenWidth);
         this.subtitleText.setFontSize(subtitleFontSize);
         this.subtitleText.setPosition(centerX, GAME_CONFIG.TITLE_TOP_MARGIN + GAME_CONFIG.SUBTITLE_OFFSET);
@@ -2057,6 +2053,8 @@ class Game extends phaser_minExports.Scene {
         });
         this.input.on('pointermove', (pointer) => {
             this.noteUserInteraction();
+            if (this.tutorialActive)
+                return;
             if (this.drawingSystem.getIsDrawing()) {
                 this.onMouseMove(pointer.x, pointer.y);
             }

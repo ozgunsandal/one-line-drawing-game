@@ -21,7 +21,24 @@
     </div>
     <script>
         function callFacebookCTA() {
-          FbPlayableAd.onCTAClick();
+          try {
+            if (window.mraid) {
+              var url = window.MRAID_URL || window.clickTag || window.CLICKTAG || '';
+              var openCall = function() {
+                try {
+                  if (url) { window.mraid.open(url); } else { window.mraid.open(); }
+                } catch (e) {}
+              };
+              try {
+                if (window.mraid.getState && window.mraid.getState() === 'loading') {
+                  try { window.mraid.addEventListener('ready', openCall); } catch (e) { openCall(); }
+                } else {
+                  openCall();
+                }
+              } catch (e) {}
+            }
+          } catch (e) {}
+          try { FbPlayableAd.onCTAClick(); } catch (e) {}
         }
         XMLHttpRequest.prototype.send = getXMLHttpRequestSend;
       </script>
