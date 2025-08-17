@@ -237,10 +237,10 @@ const ATLAS_FRAMES = {
     BG1: 'drawing-bg1.jpg',
     BG2: 'drawing-bg2.png',
     INSTALL_BTN: 'installBtn.png',
+    HAND: 'hand.png',
     FAIL_IMAGE: 'fail.jpg',
     SUCCESS_IMAGE: 'wellDone.jpg'
 };
-// Get localization instance
 const localization = LocalizationManager.getInstance();
 const MESSAGES = {
     TITLE: localization.getText('title'),
@@ -855,6 +855,12 @@ class DrawingSystem {
             writable: true,
             value: 0
         });
+        Object.defineProperty(this, "lastFailureReason", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: null
+        });
         Object.defineProperty(this, "currentImageKey", {
             enumerable: true,
             configurable: true,
@@ -899,6 +905,7 @@ class DrawingSystem {
         this.indexSkeletonSegments();
         // this.addPathCursorFeedback();
         this.startTextureRefreshSystem();
+        this.lastFailureReason = null;
     }
     buildSkeletonSpatialGrid() {
         this.skeletonSpatialGrid.clear();
@@ -1029,6 +1036,7 @@ class DrawingSystem {
         const snapPoint = this.findNearestPointOnSkeleton(x, y);
         if (!snapPoint.onPath) {
             console.log('Mouse not on valid drawing path');
+            this.lastFailureReason = 'off_path';
             return false;
         }
         this.hidePathPreview();
@@ -1038,16 +1046,23 @@ class DrawingSystem {
         this.lastMouseY = snapPoint.y;
         this.paintBrushDot(snapPoint.x, snapPoint.y);
         console.log('Drawing started at snapped position:', snapPoint.x, snapPoint.y);
+        this.lastFailureReason = null;
         return true;
     }
     onMouseMove(x, y) {
         if (!this.isDrawing)
             return true;
         const snapPoint = this.findNearestPointOnSkeleton(x, y);
-        const drawPoint = snapPoint.onPath ? snapPoint : { x, y, onPath: false };
+        if (!snapPoint.onPath) {
+            console.log('Mouse left valid drawing path - resetting game');
+            this.lastFailureReason = 'off_path';
+            return false;
+        }
+        const drawPoint = snapPoint;
         const distance = this.getDistance(this.lastMouseX, this.lastMouseY, drawPoint.x, drawPoint.y);
         if (this.checkNewSegmentIntersection(this.lastMouseX, this.lastMouseY, drawPoint.x, drawPoint.y)) {
             console.log('Line intersection detected! Resetting...');
+            this.lastFailureReason = 'intersection';
             return false;
         }
         if (distance < GAME_CONFIG.MIN_MOVEMENT_DISTANCE)
@@ -1057,6 +1072,7 @@ class DrawingSystem {
         this.currentPath.push({ x: drawPoint.x, y: drawPoint.y });
         this.lastMouseX = drawPoint.x;
         this.lastMouseY = drawPoint.y;
+        this.lastFailureReason = null;
         return true;
     }
     onMouseUp() {
@@ -1179,7 +1195,6 @@ class DrawingSystem {
                 const segmentStart = path[i];
                 const segmentEnd = path[i + 1];
                 if (this.checkLineIntersection(newStartX, newStartY, newEndX, newEndY, segmentStart.x, segmentStart.y, segmentEnd.x, segmentEnd.y)) {
-                    // Tolerate if there is a nearby drawable path to progress towards
                     if (this.hasNearbyDrawablePath(newStartX, newStartY, newEndX, newEndY)) {
                         continue;
                     }
@@ -1239,6 +1254,7 @@ class DrawingSystem {
         this.drawnPaths = [];
         this.currentPath = [];
         this.isDrawing = false;
+        this.lastFailureReason = null;
         for (const segment of this.skeletonSegments) {
             segment.covered = false;
         }
@@ -1304,6 +1320,9 @@ class DrawingSystem {
         const dx = x2 - x1;
         const dy = y2 - y1;
         return Math.sqrt(dx * dx + dy * dy);
+    }
+    getLastFailureReason() {
+        return this.lastFailureReason;
     }
     setCurrentImageKey(imageKey) {
         this.currentImageKey = imageKey;
@@ -1930,6 +1949,30 @@ class Game extends phaser_minExports.Scene {
             writable: true,
             value: []
         });
+        Object.defineProperty(this, "tutorialHand", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: null
+        });
+        Object.defineProperty(this, "tutorialActive", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: false
+        });
+        Object.defineProperty(this, "lastUserInteractionAt", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: 0
+        });
+        Object.defineProperty(this, "tutorialTween", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: null
+        });
     }
     setupResizeHandler() {
         this.scale.on('resize', () => {
@@ -1950,6 +1993,7 @@ class Game extends phaser_minExports.Scene {
         this.createUI();
         this.initializeGame();
         this.setupResizeHandler();
+        this.setupIdleTutorialWatcher();
     }
     initializeSystems() {
         this.shapeTransform = new ShapeTransform(this);
@@ -2008,14 +2052,17 @@ class Game extends phaser_minExports.Scene {
     }
     setupMouseEvents() {
         this.input.on('pointerdown', (pointer) => {
+            this.noteUserInteraction();
             this.onMouseDown(pointer.x, pointer.y);
         });
         this.input.on('pointermove', (pointer) => {
+            this.noteUserInteraction();
             if (this.drawingSystem.getIsDrawing()) {
                 this.onMouseMove(pointer.x, pointer.y);
             }
         });
         this.input.on('pointerup', () => {
+            this.noteUserInteraction();
             this.onMouseUp();
         });
         if (this.input.keyboard) {
@@ -2031,6 +2078,7 @@ class Game extends phaser_minExports.Scene {
         });
     }
     onMouseDown(x, y) {
+        this.stopTutorialIfActive();
         if (this.gameCompleted) {
             console.log(MESSAGES.DRAWING_DISABLED);
             return;
@@ -2043,7 +2091,9 @@ class Game extends phaser_minExports.Scene {
         if (this.gameCompleted)
             return;
         if (!this.drawingSystem.onMouseMove(x, y)) {
-            this.resetDrawing(true);
+            const reason = this.drawingSystem.getLastFailureReason();
+            const showFail = reason === 'intersection';
+            this.resetDrawing(!!showFail);
             return;
         }
         this.updateProgress();
@@ -2054,6 +2104,136 @@ class Game extends phaser_minExports.Scene {
         console.log('Mouse up - resetting drawing without fail screen');
         this.drawingSystem.onMouseUp();
         this.resetDrawing(false);
+    }
+    noteUserInteraction() {
+        this.lastUserInteractionAt = this.time.now;
+    }
+    setupIdleTutorialWatcher() {
+        this.lastUserInteractionAt = this.time.now;
+        this.time.addEvent({
+            delay: 250,
+            loop: true,
+            callback: () => {
+                if (this.gameCompleted)
+                    return;
+                if (this.tutorialActive)
+                    return;
+                if (this.input.activePointer.isDown)
+                    return;
+                if (this.drawingSystem.getIsDrawing())
+                    return;
+                const idleMs = this.time.now - this.lastUserInteractionAt;
+                if (idleMs >= 2000) {
+                    this.startTutorial();
+                }
+            }
+        });
+    }
+    startTutorial() {
+        if (this.tutorialActive)
+            return;
+        if (!this.skeletonPolylines.length)
+            return;
+        const polyline = this.skeletonPolylines.reduce((longest, pl) => pl.length > longest.length ? pl : longest, this.skeletonPolylines[0]);
+        if (!polyline || polyline.length < 3)
+            return;
+        const maxPoints = Math.min(12, Math.max(3, Math.floor(polyline.length * 0.12)));
+        const startIndex = Math.max(0, Math.min(polyline.length - maxPoints, Math.floor(polyline.length * 0.4)));
+        const tutorialPoints = polyline.slice(startIndex, startIndex + maxPoints);
+        const st = this.shapeTransform.getShapeTransform(this.currentImageKey);
+        const worldPoints = tutorialPoints.map(p => ({ x: st.startX + p[0] * st.scale, y: st.startY + p[1] * st.scale }));
+        const handFrame = this.textures.get(TEXTURE_ATLAS.KEY).get(ATLAS_FRAMES.HAND);
+        const handFrameWidth = handFrame.width;
+        const handFrameHeight = handFrame.height;
+        const fingerTipOriginX = 80 / handFrameWidth;
+        const fingerTipOriginY = 30 / handFrameHeight;
+        const screenHeight = this.cameras.main.height;
+        const maxHandHeight = screenHeight * 0.14;
+        const minHandHeight = 32;
+        const targetHandHeight = Phaser.Math.Clamp(st.brushSize * 6, minHandHeight, maxHandHeight);
+        const handScale = targetHandHeight / handFrameHeight;
+        if (!this.tutorialHand) {
+            this.tutorialHand = this.add.image(worldPoints[0].x, worldPoints[0].y, TEXTURE_ATLAS.KEY, ATLAS_FRAMES.HAND)
+                .setDepth(1000)
+                .setOrigin(fingerTipOriginX, fingerTipOriginY)
+                .setScale(handScale)
+                .setAlpha(0.9);
+        }
+        else {
+            this.tutorialHand
+                .setVisible(true)
+                .setOrigin(fingerTipOriginX, fingerTipOriginY)
+                .setScale(handScale)
+                .setPosition(worldPoints[0].x, worldPoints[0].y);
+        }
+        this.drawingSystem.onMouseDown(worldPoints[0].x, worldPoints[0].y);
+        this.tutorialActive = true;
+        const tweens = [];
+        for (let i = 1; i < worldPoints.length; i++) {
+            const from = worldPoints[i - 1];
+            const to = worldPoints[i];
+            const dist = Math.hypot(to.x - from.x, to.y - from.y);
+            const duration = Math.max(1000, Math.min(2000, dist * 5));
+            tweens.push({
+                targets: this.tutorialHand,
+                x: to.x,
+                y: to.y,
+                duration,
+                ease: 'Sine.easeInOut',
+                onUpdate: () => {
+                    if (!this.tutorialActive)
+                        return;
+                    this.drawingSystem.onMouseMove(this.tutorialHand.x, this.tutorialHand.y);
+                }
+            });
+        }
+        let idx = 1;
+        const runNext = () => {
+            if (!this.tutorialActive)
+                return;
+            if (idx >= worldPoints.length) {
+                this.drawingSystem.onMouseUp();
+                this.drawingSystem.resetDrawing();
+                if (this.tutorialHand)
+                    this.tutorialHand.setVisible(false);
+                this.tutorialActive = false;
+                this.tutorialTween = null;
+                return;
+            }
+            const from = worldPoints[idx - 1];
+            const to = worldPoints[idx];
+            const dist = Math.hypot(to.x - from.x, to.y - from.y);
+            const duration = Math.max(500, Math.min(1000, dist * 5));
+            this.tutorialTween = this.tweens.add({
+                targets: this.tutorialHand,
+                x: to.x,
+                y: to.y,
+                duration,
+                ease: 'Sine.easeInOut',
+                onUpdate: () => {
+                    if (!this.tutorialActive)
+                        return;
+                    this.drawingSystem.onMouseMove(this.tutorialHand.x, this.tutorialHand.y);
+                },
+                onComplete: () => {
+                    idx++;
+                    runNext();
+                }
+            });
+        };
+        runNext();
+    }
+    stopTutorialIfActive() {
+        if (!this.tutorialActive)
+            return;
+        this.tutorialActive = false;
+        this.tutorialTween?.stop();
+        this.tutorialTween = null;
+        if (this.tutorialHand) {
+            this.tutorialHand.setVisible(false);
+        }
+        this.drawingSystem.onMouseUp();
+        this.drawingSystem.resetDrawing();
     }
     updateProgress() {
         if (this.gameCompleted)

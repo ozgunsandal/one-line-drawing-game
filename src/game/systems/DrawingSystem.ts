@@ -30,6 +30,7 @@ export class DrawingSystem {
     
     private skeletonSegments: SkeletonSegment[] = [];
     private totalSkeletonLength: number = 0;
+    private lastFailureReason: 'intersection' | 'off_path' | null = null;
 
     constructor(scene: Phaser.Scene, shapeTransform: ShapeTransform) {
         this.scene = scene;
@@ -80,6 +81,7 @@ export class DrawingSystem {
         this.indexSkeletonSegments();
         // this.addPathCursorFeedback();
         this.startTextureRefreshSystem();
+        this.lastFailureReason = null;
     }
 
     private buildSkeletonSpatialGrid(): void {
@@ -248,6 +250,7 @@ export class DrawingSystem {
         
         if (!snapPoint.onPath) {
             console.log('Mouse not on valid drawing path');
+            this.lastFailureReason = 'off_path';
             return false;
         }
         
@@ -260,6 +263,7 @@ export class DrawingSystem {
         
         this.paintBrushDot(snapPoint.x, snapPoint.y);
         console.log('Drawing started at snapped position:', snapPoint.x, snapPoint.y);
+        this.lastFailureReason = null;
         return true;
     }
 
@@ -267,13 +271,18 @@ export class DrawingSystem {
         if (!this.isDrawing) return true;
 
         const snapPoint = this.findNearestPointOnSkeleton(x, y);
-        
-        const drawPoint = snapPoint.onPath ? snapPoint : {x, y, onPath: false};
+        if (!snapPoint.onPath) {
+            console.log('Mouse left valid drawing path - resetting game');
+            this.lastFailureReason = 'off_path';
+            return false;
+        }
+        const drawPoint = snapPoint;
         
         const distance = this.getDistance(this.lastMouseX, this.lastMouseY, drawPoint.x, drawPoint.y);
         
         if (this.checkNewSegmentIntersection(this.lastMouseX, this.lastMouseY, drawPoint.x, drawPoint.y)) {
             console.log('Line intersection detected! Resetting...');
+            this.lastFailureReason = 'intersection';
             return false;
         }
         
@@ -285,6 +294,7 @@ export class DrawingSystem {
         
         this.lastMouseX = drawPoint.x;
         this.lastMouseY = drawPoint.y;
+        this.lastFailureReason = null;
         return true;
     }
 
@@ -447,7 +457,6 @@ export class DrawingSystem {
                     newStartX, newStartY, newEndX, newEndY,
                     segmentStart.x, segmentStart.y, segmentEnd.x, segmentEnd.y
                 )) {
-                    // Tolerate if there is a nearby drawable path to progress towards
                     if (this.hasNearbyDrawablePath(newStartX, newStartY, newEndX, newEndY)) {
                         continue;
                     }
@@ -519,6 +528,7 @@ export class DrawingSystem {
         this.drawnPaths = [];
         this.currentPath = [];
         this.isDrawing = false;
+        this.lastFailureReason = null;
         
         for (const segment of this.skeletonSegments) {
             segment.covered = false;
@@ -597,6 +607,10 @@ export class DrawingSystem {
         const dx = x2 - x1;
         const dy = y2 - y1;
         return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    getLastFailureReason(): 'intersection' | 'off_path' | null {
+        return this.lastFailureReason;
     }
 
     setCurrentImageKey(imageKey: string): void {

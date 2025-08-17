@@ -100,11 +100,11 @@ export const ATLAS_FRAMES = {
     BG1: 'drawing-bg1.jpg',
     BG2: 'drawing-bg2.png',
     INSTALL_BTN: 'installBtn.png',
+    HAND: 'hand.png',
     FAIL_IMAGE: 'fail.jpg',
     SUCCESS_IMAGE: 'wellDone.jpg'
 };
 
-// Get localization instance
 const localization = LocalizationManager.getInstance();
 
 export const MESSAGES = {

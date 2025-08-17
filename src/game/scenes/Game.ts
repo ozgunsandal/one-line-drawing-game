@@ -24,6 +24,11 @@ export class Game extends Scene {
     private gameCompleted: boolean = false;
     private skeletonPolylines: Array<Array<[number, number]>> = [];
 
+    private tutorialHand: Phaser.GameObjects.Image | null = null;
+    private tutorialActive: boolean = false;
+    private lastUserInteractionAt: number = 0;
+    private tutorialTween: Phaser.Tweens.Tween | null = null;
+
     constructor() {
         super('Game');
     }
@@ -49,6 +54,7 @@ export class Game extends Scene {
         this.createUI();
         this.initializeGame();
         this.setupResizeHandler();
+        this.setupIdleTutorialWatcher();
     }
 
     private initializeSystems(): void {
@@ -118,16 +124,19 @@ export class Game extends Scene {
 
     private setupMouseEvents(): void {
         this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+            this.noteUserInteraction();
             this.onMouseDown(pointer.x, pointer.y);
         });
 
         this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+            this.noteUserInteraction();
             if (this.drawingSystem.getIsDrawing()) {
                 this.onMouseMove(pointer.x, pointer.y);
             }
         });
 
         this.input.on('pointerup', () => {
+            this.noteUserInteraction();
             this.onMouseUp();
         });
 
@@ -147,6 +156,7 @@ export class Game extends Scene {
     }
 
     private onMouseDown(x: number, y: number): void {
+        this.stopTutorialIfActive();
         if (this.gameCompleted) {
             console.log(MESSAGES.DRAWING_DISABLED);
             return;
@@ -161,7 +171,9 @@ export class Game extends Scene {
         if (this.gameCompleted) return;
         
         if (!this.drawingSystem.onMouseMove(x, y)) {
-            this.resetDrawing(true);
+            const reason = this.drawingSystem.getLastFailureReason();
+            const showFail = reason === 'intersection';
+            this.resetDrawing(!!showFail);
             return;
         }
         
@@ -174,6 +186,136 @@ export class Game extends Scene {
         console.log('Mouse up - resetting drawing without fail screen');
         this.drawingSystem.onMouseUp();
         this.resetDrawing(false);
+    }
+
+    private noteUserInteraction(): void {
+        this.lastUserInteractionAt = this.time.now;
+    }
+
+    private setupIdleTutorialWatcher(): void {
+        this.lastUserInteractionAt = this.time.now;
+        this.time.addEvent({
+            delay: 250,
+            loop: true,
+            callback: () => {
+                if (this.gameCompleted) return;
+                if (this.tutorialActive) return;
+                if (this.input.activePointer.isDown) return;
+                if (this.drawingSystem.getIsDrawing()) return;
+                const idleMs = this.time.now - this.lastUserInteractionAt;
+                if (idleMs >= 2000) {
+                    this.startTutorial();
+                }
+            }
+        });
+    }
+
+    private startTutorial(): void {
+        if (this.tutorialActive) return;
+        if (!this.skeletonPolylines.length) return;
+
+        const polyline = this.skeletonPolylines.reduce((longest, pl) => pl.length > longest.length ? pl : longest, this.skeletonPolylines[0]);
+        if (!polyline || polyline.length < 3) return;
+
+        const maxPoints = Math.min(12, Math.max(3, Math.floor(polyline.length * 0.12)));
+        const startIndex = Math.max(0, Math.min(polyline.length - maxPoints, Math.floor(polyline.length * 0.4)));
+        const tutorialPoints = polyline.slice(startIndex, startIndex + maxPoints);
+
+        const st = this.shapeTransform.getShapeTransform(this.currentImageKey);
+        const worldPoints = tutorialPoints.map(p => ({ x: st.startX + p[0] * st.scale, y: st.startY + p[1] * st.scale }));
+
+        const handFrame = this.textures.get(TEXTURE_ATLAS.KEY).get(ATLAS_FRAMES.HAND);
+        const handFrameWidth = handFrame.width;
+        const handFrameHeight = handFrame.height;
+        const fingerTipOriginX = 80 / handFrameWidth;
+        const fingerTipOriginY = 30 / handFrameHeight;
+        const screenHeight = this.cameras.main.height;
+        const maxHandHeight = screenHeight * 0.14;
+        const minHandHeight = 32;
+        const targetHandHeight = Phaser.Math.Clamp(st.brushSize * 6, minHandHeight, maxHandHeight);
+        const handScale = targetHandHeight / handFrameHeight;
+
+        if (!this.tutorialHand) {
+            this.tutorialHand = this.add.image(worldPoints[0].x, worldPoints[0].y, TEXTURE_ATLAS.KEY, ATLAS_FRAMES.HAND)
+                .setDepth(1000)
+                .setOrigin(fingerTipOriginX, fingerTipOriginY)
+                .setScale(handScale)
+                .setAlpha(0.9);
+        } else {
+            this.tutorialHand
+                .setVisible(true)
+                .setOrigin(fingerTipOriginX, fingerTipOriginY)
+                .setScale(handScale)
+                .setPosition(worldPoints[0].x, worldPoints[0].y);
+        }
+
+        this.drawingSystem.onMouseDown(worldPoints[0].x, worldPoints[0].y);
+
+        this.tutorialActive = true;
+        const tweens: Phaser.Types.Tweens.TweenBuilderConfig[] = [];
+        for (let i = 1; i < worldPoints.length; i++) {
+            const from = worldPoints[i - 1];
+            const to = worldPoints[i];
+            const dist = Math.hypot(to.x - from.x, to.y - from.y);
+            const duration = Math.max(1000, Math.min(2000, dist * 5));
+            tweens.push({
+                targets: this.tutorialHand!,
+                x: to.x,
+                y: to.y,
+                duration,
+                ease: 'Sine.easeInOut',
+                onUpdate: () => {
+                    if (!this.tutorialActive) return;
+                    this.drawingSystem.onMouseMove(this.tutorialHand!.x, this.tutorialHand!.y);
+                }
+            });
+        }
+
+        let idx = 1;
+        const runNext = () => {
+            if (!this.tutorialActive) return;
+            if (idx >= worldPoints.length) {
+                this.drawingSystem.onMouseUp();
+                this.drawingSystem.resetDrawing();
+                if (this.tutorialHand) this.tutorialHand.setVisible(false);
+                this.tutorialActive = false;
+                this.tutorialTween = null;
+                return;
+            }
+            const from = worldPoints[idx - 1];
+            const to = worldPoints[idx];
+            const dist = Math.hypot(to.x - from.x, to.y - from.y);
+            const duration = Math.max(500, Math.min(1000, dist * 5));
+
+            this.tutorialTween = this.tweens.add({
+                targets: this.tutorialHand!,
+                x: to.x,
+                y: to.y,
+                duration,
+                ease: 'Sine.easeInOut',
+                onUpdate: () => {
+                    if (!this.tutorialActive) return;
+                    this.drawingSystem.onMouseMove(this.tutorialHand!.x, this.tutorialHand!.y);
+                },
+                onComplete: () => {
+                    idx++;
+                    runNext();
+                }
+            });
+        };
+        runNext();
+    }
+
+    private stopTutorialIfActive(): void {
+        if (!this.tutorialActive) return;
+        this.tutorialActive = false;
+        this.tutorialTween?.stop();
+        this.tutorialTween = null;
+        if (this.tutorialHand) {
+            this.tutorialHand.setVisible(false);
+        }
+        this.drawingSystem.onMouseUp();
+        this.drawingSystem.resetDrawing();
     }
 
     private updateProgress(): void {
